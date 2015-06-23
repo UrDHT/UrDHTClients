@@ -1,0 +1,35 @@
+<html/>
+<body>
+<!-- JavaScript is def. not batteries included. -->
+<!-- From http://pastebin.com/B5r3P5Ny -->
+
+<div id="content"></div>
+<form/>
+<textarea/ id="newcontent">test</textarea>
+<input type="submit" value="write"/ onclick=
+"dht.store(hashval,document.getElementById('newcontent').value)">
+
+</form>
+
+
+
+<script src="./urdht.js"/></script>
+<script>
+
+    key = window.location.hash.substr(1);
+    var hashval = hash(key)
+    console.log(hashval)
+
+    
+    
+    dht = UrDHT([{"id":"QmUyLNdX8S1LoM2v1RvbzEF89WzYwqGz5YjndrCk5pNurX", "addr":"http://127.0.0.1:8000/", "wsAddr":"ws://127.0.0.1:8001"}
+])
+    dht.get(hashval,
+        function(err,val){
+            document.getElementById("content").innerHTML=val;
+        })
+
+</script>
+
+</body>
+</html>
