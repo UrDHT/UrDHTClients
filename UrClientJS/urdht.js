@@ -1362,11 +1362,11 @@ function UrDHT(bootstraps){
         self.lookup(id, lookup_callback)
     };
 
-    self.get = function(id,t, callback){
+    self.poll = function(id,t, callback){
         function lookup_callback(nodeinfo){
             wsAddr = nodeinfo["wsAddr"]
             query = {
-                "method":"get",
+                "method":"poll",
                 "id":id,
                 "time":t
             }
