@@ -3,6 +3,8 @@ import pymultihash as pmh
 import time
 import random
 
+MAX_RETRYS = 10
+
 def dial(target, cmd, **kwargs):
 
 	buildURL = [target["addr"]]
@@ -24,15 +26,17 @@ def dial(target, cmd, **kwargs):
 		postData = kwargs["data"]
 
 	trgAddr = ''.join(buildURL)
+	print("dial", trgAddr)
 	if postData is not None:
 		r = requests.post(trgAddr, data=postData)
-		if r.text:
-			return r.json()
+		return None
 	else:
 		r = requests.get(trgAddr)
-		print([x for x in r.text])
-		if len(r.text)>0:
-			return r.json()		
+		if cmd == "get":
+			return r.text
+		elif cmd == "poll" or cmd == "seek":
+			return r.json()
+		
 
 class UrDHTClient(object):
 	def __init__(self, apiStr, bootstraps):
@@ -46,41 +50,73 @@ class UrDHTClient(object):
 		serverStack = self.knownPeers[:]#I think this is kinda elegant.
 		#it will try all the known peers before failing
 		random.shuffle(serverStack)
-		nextHop = None
-		while(not nextHop or nextHop["id"]!=serverStack[-1]["id"]):
+		while(len(serverStack)>0):
 			try:
 				nextHop = dial(serverStack[-1],"seek",id=targetID)
+				if serverStack[-1]["id"] == nextHop["id"]:
+					return nextHop
+				else:
+					serverStack.append(nextHop)
 			except:
 				print(serverStack.pop(),"failed dial")
 
 			if len(serverStack) == 0:
 				raise Exception("lookup failed")
-		return nextHop
+
 
 	def get(self,key):
-		target_id = self.hash(key)
-		target_peer = self.lookup(target_id)
-		result = dial(target_peer,"get",id=target_id)
+		try:
+			target_id = self.hash(key)
+			target_peer = self.lookup(target_id)
+			result = dial(target_peer,"get",id=target_id)
+		except:
+			return self.get(key)
 		return result
 
 	def store(self,key, data):
-		target_id = self.hash(key)
-		target_peer = self.lookup(target_id)
-		dial(target_peer,"store",id=target_id,data=data)
+		try:
+			target_id = self.hash(key)
+			target_peer = self.lookup(target_id)
+			dial(target_peer,"store",id=target_id,data=data)
+		except:
+			return self.store(key,data)
 
 	def post(self,key, data):
-		target_id = self.hash(key)
-		target_peer = self.lookup(target_id)
-		dial(target_peer,"post",id=target_id,data=data)
+		try:
+			target_id = self.hash(key)
+			target_peer = self.lookup(target_id)
+			dial(target_peer,"post",id=target_id,data=data)
+		except:
+			return self.post(key,data)
+
 
 	def poll(self,key, time):
-		target_id = self.hash(key)
-		target_peer = self.lookup(target_id)
-		return dial(target_peer,"poll",id=target_id,time=time)
+		try:
+			target_id = self.hash(key)
+			target_peer = self.lookup(target_id)
+			return dial(target_peer,"poll",id=target_id,time=time)
+		except:
+			return self.poll(key,time)
 
 
-bootstrap = {"id":"5du2nPHVMXejLeQM14Dbxv18ErUPTb", "addr":"http://127.0.0.1:8000/", "wsAddr":"ws://127.0.0.1:8001"}
 
-c = UrDHTClient("",[bootstrap])
-c.post("foo","hello world")
-print(c.poll("foo",0))
+
+
+def quickTest():
+	for k in range(100):
+		bootstrap = {"id":"QmadXgpUy2sSkjNfsAD9o7Y44jGY8LB8wpAukUXKeNYmjo", "addr":"http://73.207.38.249:8000/", "wsAddr":"ws:/73.207.38.249:8001"}
+		key = "foo"+str(k)
+		c = UrDHTClient("",[bootstrap])
+		teststr = "hello world"+str(k)
+		c.store(key,teststr)
+		assert(c.get(key)==teststr)
+		c.post(key,teststr)
+		results = c.poll(key,0)
+		print("results",results)
+		strings = map(lambda x: x[1], results)
+
+		assert(repr(bytes(teststr,"UTF-8")) in strings)
+
+quickTest()
+
+
