@@ -15,7 +15,7 @@ def dial(target, cmd, **kwargs):
 	elif cmd == "poll":
 		buildURL.append(kwargs["id"])
 		buildURL.append("/")
-		buildURL.append(kwargs["time"])
+		buildURL.append(str(kwargs["time"]))
 	elif cmd == "post":
 		buildURL.append(kwargs["id"])
 		postData = kwargs["data"]
@@ -26,10 +26,13 @@ def dial(target, cmd, **kwargs):
 	trgAddr = ''.join(buildURL)
 	if postData is not None:
 		r = requests.post(trgAddr, data=postData)
-		return r.json()
+		if r.text:
+			return r.json()
 	else:
 		r = requests.get(trgAddr)
-		return r.json()		
+		print([x for x in r.text])
+		if len(r.text)>0:
+			return r.json()		
 
 class UrDHTClient(object):
 	def __init__(self, apiStr, bootstraps):
@@ -54,9 +57,30 @@ class UrDHTClient(object):
 				raise Exception("lookup failed")
 		return nextHop
 
+	def get(self,key):
+		target_id = self.hash(key)
+		target_peer = self.lookup(target_id)
+		result = dial(target_peer,"get",id=target_id)
+		return result
+
+	def store(self,key, data):
+		target_id = self.hash(key)
+		target_peer = self.lookup(target_id)
+		dial(target_peer,"store",id=target_id,data=data)
+
+	def post(self,key, data):
+		target_id = self.hash(key)
+		target_peer = self.lookup(target_id)
+		dial(target_peer,"post",id=target_id,data=data)
+
+	def poll(self,key, time):
+		target_id = self.hash(key)
+		target_peer = self.lookup(target_id)
+		return dial(target_peer,"poll",id=target_id,time=time)
 
 
 bootstrap = {"id":"5du2nPHVMXejLeQM14Dbxv18ErUPTb", "addr":"http://127.0.0.1:8000/", "wsAddr":"ws://127.0.0.1:8001"}
 
 c = UrDHTClient("",[bootstrap])
-print(c.lookup("5du2nPHVMXejLeQM14Dbxv18ErUPTb"))
+c.post("foo","hello world")
+print(c.poll("foo",0))
