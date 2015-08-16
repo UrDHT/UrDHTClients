@@ -20,14 +20,17 @@
     var hashval = hash(key)
     console.log(hashval)
 
-    
-    
-    dht = UrDHT([{"id":"QmUyLNdX8S1LoM2v1RvbzEF89WzYwqGz5YjndrCk5pNurX", "addr":"http://127.0.0.1:8000/", "wsAddr":"ws://127.0.0.1:8001"}
+
+
+    dht = UrDHT([{"id":"QmUyLNdX8S1LoM2v1RvbzEF89WzYwqGz5YjndrCk5pNurX", "addr":"http://127.0.0.1:8000/", "loc":[0.002246,0.938016], "wsAddr":"ws://127.0.0.1:8023"}
 ])
-    dht.get(hashval,
-        function(err,val){
-            document.getElementById("content").innerHTML=val;
-        })
+    function callback(err,val){
+        console.log("in callback");
+        document.getElementById("content").innerHTML=val;
+    }
+    console.log("in html");
+    console.log(callback)
+    dht.get(hashval,callback)
 
 </script>
 

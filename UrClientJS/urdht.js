@@ -1,7 +1,7 @@
 
 /*!
 * Basic JavaScript BN library - subset useful for RSA encryption. v1.3
-* 
+*
 * Copyright (c) 2005  Tom Wu
 * All Rights Reserved.
 * BSD License
@@ -1294,15 +1294,24 @@ d[e>>>5]|=128<<24-e%32;d[(e+64>>>9<<4)+14]=h.floor(b/4294967296);d[(e+64>>>9<<4)
 
 
 function wsDial(target,rawData,callback){
-    //Opens a websocket, sends rawData and 
+    //Opens a websocket, sends rawData and
     //callbacks with the response
     //assumes transactional connections: connection is closed before callback
     //callback should take f(err,data) where err == false indicates ok
     console.log("dialing: "+target)
     websocket = new WebSocket(target);
-    websocket.onopen = function(evt) {websocket.send(rawData)}; 
-    websocket.onmessage = function(evt) { websocket.close(); typeof callback === 'function' && callback(false,evt.data) };
-    websocket.onerror = function(evt) { websocket.close(); typeof callback === 'function' && callback(true,evt)};
+    websocket.onopen = function(evt) {
+      websocket.send(rawData)};
+    websocket.onmessage = function(evt) {
+      console.log(evt.data);
+      websocket.close();
+      console.log("websocket closed");
+      console.log(callback);
+      typeof callback === 'function' && callback(false,evt.data); };
+      console.log("post callback");
+    websocket.onerror = function(evt) {
+      websocket.close();
+      typeof callback === 'function' && callback(true,evt);};
 }
 
 function inPeerlist(arr,peer){
@@ -1317,7 +1326,7 @@ function UrDHT(bootstraps){
     if (!(this instanceof UrDHT)) return new UrDHT(bootstraps);
     //above is paranoid magic copied off people who know what they are doing
     self.peerList = bootstraps
-    
+
     self.lookup = function(id, callback){//find the best peer for an address
         function _lookup(err, raw_newpeer){
             newpeer = JSON.parse(raw_newpeer)
@@ -1336,7 +1345,7 @@ function UrDHT(bootstraps){
                     "id":id
                 }
                 query_raw = JSON.stringify(query)
-                wsDial(peer["wsAddr"],query_raw,_lookup)                
+                wsDial(peer["wsAddr"],query_raw,_lookup)
                 }
         };
         var peer = self.peerList[Math.floor(Math.random() * self.peerList.length)]
@@ -1347,26 +1356,30 @@ function UrDHT(bootstraps){
         query_raw = JSON.stringify(query)
         wsDial(peer["wsAddr"],query_raw,_lookup)
     };
-    
+
 
     self.get = function(id, callback){
+      console.log("In get")
+        var mycallback = callback;
+        console.log(mycallback);
         function lookup_callback(nodeinfo){
+            console.log(mycallback)
             wsAddr = nodeinfo["wsAddr"]
             query = {
                 "method":"get",
                 "id":id
             }
             query_raw = JSON.stringify(query)
-            wsDial(wsAddr, query_raw, callback)
+            wsDial(wsAddr, query_raw, mycallback)
         }
         self.lookup(id, lookup_callback)
     };
 
-    self.get = function(id,t, callback){
+    self.poll = function(id,t, callback){
         function lookup_callback(nodeinfo){
             wsAddr = nodeinfo["wsAddr"]
             query = {
-                "method":"get",
+                "method":"poll",
                 "id":id,
                 "time":t
             }
@@ -1405,8 +1418,8 @@ function UrDHT(bootstraps){
     };
 
 };
-    
-function _B58() 
+
+function _B58()
 {
     Base58 = {
         alphabet: "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz",
@@ -1472,7 +1485,7 @@ function _B58()
 
             return bytes;
         }
-        
+
     };
     return Base58;
 };
@@ -1491,16 +1504,3 @@ function _B58()
         return B58.encode(final_bytes)
 
     }
-
-
-    
-
-
-
-
-
-
-
-
-
-
