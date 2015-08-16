@@ -2,11 +2,25 @@ import myrequests as requests
 import pymultihash as pmh
 import time
 import random
+import json
 
-def dial(target, cmd, **kwargs):
+def bootstrapSubnet(subnet,UrDHTPeers):
+	c = UrDHTClient("UrDHT",UrDHTPeers)
+	subnetPeers = []
+	peerListMessages = c.poll(self.hash(subnet),0)
+	if len(peerList) == 0:
+		raise Exception("No sponsoring Peers found")
+	else:
+		for m in peerListMessages:
+			pString = m[1]
+			peer = json.loads(pString)
+			subnetPeers.append(peer)
+		return UrDHTClient(subnet,subnetPeers)
+
+def dial(subnet,target, cmd, **kwargs):
 
 	buildURL = [target["addr"]]
-	buildURL.append("api/v0/client/")
+	buildURL.append(subnet+"/client/")
 	buildURL.append(cmd)
 	buildURL.append("/")
 	postData = None
@@ -30,17 +44,20 @@ def dial(target, cmd, **kwargs):
 			return r.json()
 	else:
 		r = requests.get(trgAddr)
-		print([x for x in r.text])
+		#print(r.text)
 		if len(r.text)>0:
-			return r.json()		
+			if cmd == "get":
+				return r.text
+			else:
+				return r.json()
 
 class UrDHTClient(object):
-	def __init__(self, apiStr, bootstraps):
-		self.apiStr = apiStr
+	def __init__(self, subnet, bootstraps):
+		self.subnet = subnet
 		self.knownPeers = bootstraps
 
 	def hash(self, string):
-		return pmh.genHash(self.apiStr+string,0x12)
+		return pmh.genHash(string,0x12)
 
 	def lookup(self,targetID):
 		serverStack = self.knownPeers[:]#I think this is kinda elegant.
@@ -49,38 +66,40 @@ class UrDHTClient(object):
 		nextHop = None
 		while(not nextHop or nextHop["id"]!=serverStack[-1]["id"]):
 			try:
-				nextHop = dial(serverStack[-1],"seek",id=targetID)
+				nextHop = dial(self.subnet,serverStack[-1],"seek",id=targetID)
 			except:
 				print(serverStack.pop(),"failed dial")
 
 			if len(serverStack) == 0:
 				raise Exception("lookup failed")
+			serverStack.append(nextHop)
 		return nextHop
 
 	def get(self,key):
 		target_id = self.hash(key)
 		target_peer = self.lookup(target_id)
-		result = dial(target_peer,"get",id=target_id)
+		result = dial(self.subnet,target_peer,"get",id=target_id)
 		return result
 
 	def store(self,key, data):
 		target_id = self.hash(key)
 		target_peer = self.lookup(target_id)
-		dial(target_peer,"store",id=target_id,data=data)
+		dial(self.subnet,target_peer,"store",id=target_id,data=data)
 
 	def post(self,key, data):
 		target_id = self.hash(key)
 		target_peer = self.lookup(target_id)
-		dial(target_peer,"post",id=target_id,data=data)
+		dial(self.subnet,target_peer,"post",id=target_id,data=data)
 
 	def poll(self,key, time):
 		target_id = self.hash(key)
 		target_peer = self.lookup(target_id)
-		return dial(target_peer,"poll",id=target_id,time=time)
+		return dial(self.subnet,target_peer,"poll",id=target_id,time=time)
 
 
-bootstrap = {"id":"5du2nPHVMXejLeQM14Dbxv18ErUPTb", "addr":"http://127.0.0.1:8000/", "wsAddr":"ws://127.0.0.1:8001"}
+bootstrap = {"id":"QmUyLNdX8S1LoM2v1RvbzEF89WzYwqGz5YjndrCk5pNurX", "addr":"http://127.0.0.1:8000/"}
 
-c = UrDHTClient("",[bootstrap])
-c.post("foo","hello world")
-print(c.poll("foo",0))
+c = UrDHTClient("websocket",[bootstrap])
+for x in range(100):
+	#c.store("foo%d"%x,"hello world%d"%x)
+	print(c.get("foo%d"%x))
