@@ -64,15 +64,16 @@ class UrDHTClient(object):
 		#it will try all the known peers before failing
 		random.shuffle(serverStack)
 		nextHop = None
-		while(not nextHop or nextHop["id"]!=serverStack[-1]["id"]):
+		current = serverStack.pop()
+		while True:
 			try:
-				nextHop = dial(self.subnet,serverStack[-1],"seek",id=targetID)
+				nextHop = dial(self.subnet,current,"seek",id=targetID)
+				if nextHop == current:
+					break
+				current =  nextHop
 			except:
-				print(serverStack.pop(),"failed dial")
-
-			if len(serverStack) == 0:
-				raise Exception("lookup failed")
-			serverStack.append(nextHop)
+				current =  serverstack.pop()
+				print(current,"failed dial")
 		return nextHop
 
 	def get(self,key):
